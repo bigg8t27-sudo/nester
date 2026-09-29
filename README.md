@@ -43,6 +43,10 @@ npm run dev
 
 Vite proxies `/api` to `http://localhost:4000`. You can override `PORT` and `FRONTEND_URL` in `.env`. For production, serve the frontend and API over HTTPS so the session cookie is Secure.
 
+## Deploy on Render
+
+The `render.yaml` Blueprint builds the frontend and Express API into one web service so API calls and secure session cookies use the same origin. In Render, create a Blueprint from this repository and set `DATABASE_URL` to Neon's pooled connection string and `DATABASE_URL_UNPOOLED` to its direct connection string. The service runs `prisma migrate deploy` before starting the API. Do not add `.env` or `.env.local` to Git.
+
 ## API
 
 - `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/logout`, `GET /api/auth/me`
