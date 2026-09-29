@@ -1,0 +1,165 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  BUYER
+  RENTER
+  AGENT
+  OWNER
+  ADMIN
+}
+
+enum TransactionType {
+  SALE
+  RENT
+  LEASE
+}
+
+enum PropertyType {
+  APARTMENT
+  HOUSE
+  VILLA
+  TOWNHOUSE
+  LAND
+  COMMERCIAL
+}
+
+enum InquiryStatus {
+  NEW
+  CONTACTED
+  CLOSED
+}
+
+enum ViewingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+model User {
+  id String @id @default(cuid())
+  name String
+  email String @unique
+  phone String?
+  passwordHash String
+  role Role @default(BUYER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  agentProfile AgentProfile?
+  favorites Favorite[]
+  inquiries Inquiry[]
+  viewingRequests ViewingRequest[]
+  sessions Session[]
+  properties Property[] @relation("PropertyOwner")
+}
+
+model AgentProfile {
+  id String @id @default(cuid())
+  userId String @unique
+  agencyName String
+  bio String @default("")
+  phone String?
+  photoUrl String?
+  verified Boolean @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  properties Property[]
+}
+
+model Property {
+  id String @id @default(cuid())
+  title String
+  description String @db.Text
+  price Decimal @db.Decimal(14, 2)
+  currency String @default("GHS")
+  transactionType TransactionType
+  propertyType PropertyType
+  address String @default("")
+  neighborhood String
+  city String
+  region String
+  country String @default("Ghana")
+  latitude Float?
+  longitude Float?
+  bedrooms Int @default(0)
+  bathrooms Int @default(0)
+  parking Int @default(0)
+  area Float @default(0)
+  images String[]
+  amenities String[]
+  featured Boolean @default(false)
+  verified Boolean @default(false)
+  furnished Boolean @default(false)
+  availability String?
+  yearBuilt Int?
+  views Int @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  agentId String?
+  ownerId String?
+  agent AgentProfile? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  owner User? @relation("PropertyOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  favorites Favorite[]
+  inquiries Inquiry[]
+  viewingRequests ViewingRequest[]
+  @@index([city, neighborhood])
+  @@index([transactionType, propertyType, price])
+}
+
+model Favorite {
+  id String @id @default(cuid())
+  userId String
+  propertyId String
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  @@unique([userId, propertyId])
+}
+
+model Inquiry {
+  id String @id @default(cuid())
+  userId String?
+  propertyId String
+  name String
+  email String
+  phone String?
+  message String @db.Text
+  status InquiryStatus @default(NEW)
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model ViewingRequest {
+  id String @id @default(cuid())
+  userId String?
+  propertyId String
+  name String
+  email String
+  phone String?
+  preferredDate DateTime
+  preferredTime String
+  message String @default("") @db.Text
+  status ViewingStatus @default(PENDING)
+  createdAt DateTime @default(now())
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+}
+
+model Session {
+  id String @id @default(cuid())
+  tokenHash String @unique
+  userId String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@index([expiresAt])
+}
