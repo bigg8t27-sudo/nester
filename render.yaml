@@ -1,17 +1,15 @@
 services:
   - type: web
-    name: nester
-    runtime: node
-    plan: free
-    buildCommand: npm ci && npm --prefix server ci && npm run build && npm run build:server
-    startCommand: npm --prefix server run prisma:deploy && npm --prefix server start
-    healthCheckPath: /api/health
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: SESSION_DAYS
-        value: "30"
-      - key: DATABASE_URL
-        sync: false
-      - key: DATABASE_URL_UNPOOLED
-        sync: false
+    name: nesta
+    runtime: static
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: true
+    headers:
+      - path: /*
+        name: Cache-Control
+        value: no-cache
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
