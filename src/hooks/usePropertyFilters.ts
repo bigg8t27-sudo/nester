@@ -1,7 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import type { Property, SearchFilters, SortOption } from '@/types'
 import { ALL_PROPERTIES } from '@/data/properties'
-import { propertiesApi } from '@/lib/api/properties'
 
 // ── Default state ─────────────────────────────────────────────────────────────
 
@@ -116,24 +115,6 @@ export function usePropertyFilters(
     ...initialFilters,
   })
   const [sort, setSort] = useState<SortOption>(initialSort)
-  const [apiProperties, setApiProperties] = useState<Property[] | null>(null)
-  const [apiTotal, setApiTotal] = useState(ALL_PROPERTIES.length)
-
-  useEffect(() => {
-    let alive = true
-    const timer = window.setTimeout(() => {
-      void propertiesApi.list({
-        page: 1, limit: 100, location: filters.city || undefined,
-        transactionType: filters.transactionType === 'all' ? undefined : filters.transactionType === 'buy' ? 'SALE' : 'RENT',
-        propertyType: filters.propertyType === 'all' ? undefined : filters.propertyType,
-        minPrice: filters.minPrice, maxPrice: filters.maxPrice, bedrooms: filters.minBedrooms,
-        bathrooms: filters.minBathrooms, amenity: filters.amenities.join(','), query: filters.query,
-        sort: sort === 'newest' ? undefined : sort,
-      }).then((result) => { if (alive) { setApiProperties(result.properties); setApiTotal(result.total) } })
-        .catch(() => { if (alive) { setApiProperties(null); setApiTotal(ALL_PROPERTIES.length) } })
-    }, 180)
-    return () => { alive = false; window.clearTimeout(timer) }
-  }, [filters, sort])
 
   const setFilters = useCallback((partial: Partial<SearchFilters>) => {
     setFiltersState((prev) => ({ ...prev, ...partial }))
@@ -158,10 +139,9 @@ export function usePropertyFilters(
 
   // Derived results — only re-computed when filters or sort change
   const results = useMemo(() => {
-    if (apiProperties) return apiProperties
     const filtered = applyFilters(ALL_PROPERTIES, filters)
     return applySorting(filtered, sort)
-  }, [filters, sort, apiProperties])
+  }, [filters, sort])
 
   // Count how many filters differ from defaults (for badge/indicator)
   const activeCount = useMemo(() => {
@@ -182,7 +162,7 @@ export function usePropertyFilters(
     filters,
     sort,
     results,
-    total: apiProperties ? apiTotal : results.length,
+    total: results.length,
     activeCount,
     setFilters,
     setSort,

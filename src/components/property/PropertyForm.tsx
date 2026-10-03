@@ -4,10 +4,6 @@ import FormField          from '@/components/ui/FormField'
 import FormSelect         from '@/components/ui/FormSelect'
 import FormTextarea       from '@/components/ui/FormTextarea'
 import FormCheckboxGroup  from '@/components/ui/FormCheckboxGroup'
-import { propertiesApi } from '@/lib/api/properties'
-import { useNavigate } from 'react-router-dom'
-import { ApiError } from '@/lib/api/client'
-import type { Property } from '@/types'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const PROPERTY_TYPES  = [
@@ -98,31 +94,15 @@ interface FormErrors { [key: string]: string | undefined }
 interface PropertyFormProps {
   mode?:      'sell' | 'agent'
   onSuccess?: (data: PropertyFormData) => void
-  propertyToEdit?: Property
-}
-
-function propertyToForm(property?: Property): PropertyFormData {
-  if (!property) return EMPTY_FORM
-  return {
-    title: property.title, description: property.description, propertyType: property.propertyType,
-    transactionType: property.transactionType, price: String(property.price), currency: property.currency,
-    address: property.location.address, neighborhood: property.location.neighborhood, city: property.location.city,
-    region: property.location.region, bedrooms: String(property.bedrooms), bathrooms: String(property.bathrooms),
-    parking: String(property.parking), area: String(property.area), amenities: property.amenities,
-    furnishing: property.furnished ? 'furnished' : 'unfurnished', availability: property.availability ?? '',
-  }
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
-export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit }: PropertyFormProps) {
-  const [form,       setForm]       = useState<PropertyFormData>(() => propertyToForm(propertyToEdit))
+export default function PropertyForm({ mode = 'sell', onSuccess }: PropertyFormProps) {
+  const [form,       setForm]       = useState<PropertyFormData>(EMPTY_FORM)
   const [errors,     setErrors]     = useState<FormErrors>({})
   const [submitted,  setSubmitted]  = useState(false)
   const [loading,    setLoading]    = useState(false)
   const [imageNames, setImageNames] = useState<string[]>([])
-  const [imageUrls, setImageUrls] = useState(() => propertyToEdit?.images.join('\n') ?? '')
-  const [serverError, setServerError] = useState('')
-  const navigate = useNavigate()
 
   function setField(field: keyof PropertyFormData) {
     return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -169,35 +149,19 @@ export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit 
     } catch { /* ignore */ }
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) {
-      // Scroll to first error
       const firstErr = document.querySelector('[data-error="true"]')
       firstErr?.scrollIntoView({ behavior: 'smooth', block: 'center' })
       return
     }
-    setLoading(true); setServerError('')
-    try {
-      const payload = {
-        title: form.title, description: form.description, propertyType: form.propertyType.toUpperCase(),
-        transactionType: form.transactionType === 'buy' ? 'SALE' : 'RENT', price: Number(form.price), currency: form.currency,
-        address: form.address, neighborhood: form.neighborhood || form.city, city: form.city, region: form.region, country: 'Ghana',
-        bedrooms: Number(form.bedrooms), bathrooms: Number(form.bathrooms), parking: Number(form.parking), area: Number(form.area),
-        amenities: form.amenities, images: imageUrls.split(/\n|,/).map((url) => url.trim()).filter(Boolean),
-        furnished: form.furnishing === 'furnished', availability: form.availability || undefined,
-      }
-      const data = propertyToEdit
-        ? await propertiesApi.update(propertyToEdit.id, payload)
-        : await propertiesApi.create(payload)
-      setLoading(false); setSubmitted(true); onSuccess?.(form)
-      window.setTimeout(() => navigate(`/properties/${data.id}`), 1800)
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 401) navigate('/login', { state: { message: 'Sign in before submitting a property listing.' } })
-      else if (error instanceof ApiError && error.status === 403) setServerError('Only verified listing roles can submit properties. Register as an agent or owner.')
-      else setServerError(error instanceof Error ? error.message : 'Unable to submit the property.')
+    setLoading(true)
+    setTimeout(() => {
       setLoading(false)
-    }
+      setSubmitted(true)
+      onSuccess?.(form)
+    }, 900)
   }
 
   if (submitted) {
@@ -209,12 +173,15 @@ export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit 
         <div>
           <h3 className="text-heading-4 font-semibold text-text-primary mb-2">Listing prepared</h3>
           <p className="text-sm text-text-secondary max-w-sm leading-relaxed">
-            {propertyToEdit ? 'Your property changes have been saved to NESTA.' : 'Your property listing has been saved to NESTA.'}
+            Your property details have been prepared.
+            {mode === 'agent'
+              ? ' Connect a backend to publish this listing to the platform.'
+              : ' Once the backend is connected, your listing will be submitted for review.'}
           </p>
         </div>
-        {propertyToEdit
-          ? <button type="button" onClick={() => navigate(`/properties/${propertyToEdit.id}`)} className="btn-secondary">View property</button>
-          : <button type="button" onClick={() => { setSubmitted(false); setForm(EMPTY_FORM); setImageNames([]); setImageUrls('') }} className="btn-secondary">Submit another property</button>}
+        <button type="button" onClick={() => { setSubmitted(false); setForm(EMPTY_FORM); setImageNames([]) }} className="btn-secondary">
+          Submit another property
+        </button>
       </div>
     )
   }
@@ -404,11 +371,6 @@ export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit 
 
       {/* Section 6: Images */}
       <FormSection title="Property images" step={6}>
-        <label className="flex flex-col gap-1.5 text-xs font-medium text-text-secondary">
-          Image URLs (one per line or separated with commas)
-          <textarea value={imageUrls} onChange={(event) => setImageUrls(event.target.value)} rows={3}
-            placeholder="https://example.com/property-photo.jpg" className="w-full rounded-lg border border-border bg-white px-3.5 py-2.5 text-sm font-normal text-text-primary focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent" />
-        </label>
         <div className="flex flex-col gap-3">
           <label
             htmlFor="prop-images"
@@ -452,8 +414,6 @@ export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit 
         </div>
       </FormSection>
 
-      {serverError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{serverError}</p>}
-
       {/* Submit row */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">
         <button
@@ -466,7 +426,7 @@ export default function PropertyForm({ mode = 'sell', onSuccess, propertyToEdit 
             : null}
           {loading
             ? 'Submitting…'
-            : propertyToEdit ? 'Save property changes' : mode === 'agent' ? 'Publish listing' : 'Submit for review'}
+            : mode === 'agent' ? 'Publish listing' : 'Submit for review'}
         </button>
         <button
           type="button"

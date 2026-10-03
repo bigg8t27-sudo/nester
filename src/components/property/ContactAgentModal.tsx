@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Send, CheckCircle } from 'lucide-react'
 import type { Agent, Property } from '@/types'
-import { inquiriesApi } from '@/lib/api/inquiries'
 
 interface ContactAgentModalProps {
   property: Property
@@ -31,8 +30,7 @@ export default function ContactAgentModal({ property, agent, onClose }: ContactA
   })
   const [errors,    setErrors]    = useState<FormErrors>({})
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [serverError, setServerError] = useState('')
+  const [loading,   setLoading]   = useState(false)
 
   // Lock body scroll
   useEffect(() => {
@@ -60,10 +58,9 @@ export default function ContactAgentModal({ property, agent, onClose }: ContactA
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
-    setLoading(true); setServerError('')
-    try { await inquiriesApi.create({ propertyId: property.id, ...form }); setSubmitted(true) }
-    catch (error) { setServerError(error instanceof Error ? error.message : 'Unable to send inquiry.') }
-    finally { setLoading(false) }
+    setLoading(true)
+    // Frontend-only: simulate async, no real backend yet
+    setTimeout(() => { setLoading(false); setSubmitted(true) }, 600)
   }
 
   function set(field: keyof FormState) {
@@ -131,7 +128,9 @@ export default function ContactAgentModal({ property, agent, onClose }: ContactA
                 className={`${inputClass(!!errors.message)} resize-none`} />
             </Field>
 
-            {serverError && <p role="alert" className="text-sm text-red-600">{serverError}</p>}
+            <p className="text-[10px] text-text-secondary/60">
+              This form is frontend-only. No message will be delivered until a backend is connected.
+            </p>
 
             <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-60">
               <Send size={15} />

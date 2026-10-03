@@ -1,9 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Mail, Lock, User, Phone, Home, Key, Building2, CheckCircle } from 'lucide-react'
-import { authApi } from '@/lib/api/auth'
-import { useAuth } from '@/lib/auth/AuthProvider'
 
 type UserRole = 'buyer' | 'renter' | 'agent' | 'owner'
 
@@ -27,10 +24,10 @@ interface FormErrors {
 }
 
 const ROLES: { value: UserRole; label: string; description: string; Icon: React.ElementType }[] = [
-  { value: 'buyer', Icon: Home, label: 'Buyer', description: 'I am looking to buy a property.' },
-  { value: 'renter', Icon: Home, label: 'Renter', description: 'I am looking to rent a property.' },
-  { value: 'agent', Icon: Key, label: 'Agent', description: 'I am a professional real estate agent.' },
-  { value: 'owner', Icon: Building2, label: 'Property owner', description: 'I own property and want to list it.' },
+  { value: 'buyer',  Icon: Home,      label: 'Buyer',           description: 'I am looking to buy a property.' },
+  { value: 'renter', Icon: Home,      label: 'Renter',          description: 'I am looking to rent a property.' },
+  { value: 'agent',  Icon: Key,       label: 'Agent',           description: 'I am a professional real estate agent.' },
+  { value: 'owner',  Icon: Building2, label: 'Property owner',  description: 'I own property and want to list it.' },
 ]
 
 function NestLogo() {
@@ -48,10 +45,8 @@ export default function Register() {
   const [errors,    setErrors]    = useState<FormErrors>({})
   const [showPass,  setShowPass]  = useState(false)
   const [showConf,  setShowConf]  = useState(false)
+  const [submitted, setSubmitted] = useState(false)
   const [loading,   setLoading]   = useState(false)
-  const [serverError, setServerError] = useState('')
-  const navigate = useNavigate()
-  const { setUser } = useAuth()
 
   function set(field: keyof Omit<FormState, 'role' | 'agree'>) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -76,26 +71,20 @@ export default function Register() {
     return Object.keys(errs).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
-    setLoading(true); setServerError('')
-    try {
-      const role = form.role === 'agent' ? 'AGENT' : form.role === 'owner' ? 'OWNER' : form.role === 'renter' ? 'RENTER' : 'BUYER'
-      const result = await authApi.register({ name: form.name, email: form.email, phone: form.phone || undefined, password: form.password, role })
-      setUser(result.user)
-      navigate(role === 'AGENT' ? '/agent/dashboard' : '/dashboard', { replace: true })
-    } catch (error) { setServerError(error instanceof Error ? error.message : 'Unable to create your account.') }
-    finally { setLoading(false) }
+    setLoading(true)
+    // Frontend-only — no real registration yet
+    setTimeout(() => { setLoading(false); setSubmitted(true) }, 800)
   }
 
-  // Password strength
   function getStrength(pw: string): { score: number; label: string; color: string } {
     let score = 0
-    if (pw.length >= 8)       score++
-    if (/[A-Z]/.test(pw))     score++
-    if (/[0-9]/.test(pw))     score++
-    if (/[^a-zA-Z0-9]/.test(pw)) score++
+    if (pw.length >= 8)           score++
+    if (/[A-Z]/.test(pw))         score++
+    if (/[0-9]/.test(pw))         score++
+    if (/[^a-zA-Z0-9]/.test(pw))  score++
     const labels = ['', 'Weak', 'Fair', 'Good', 'Strong']
     const colors = ['', 'bg-red-400', 'bg-yellow-400', 'bg-blue-400', 'bg-emerald-500']
     return { score, label: labels[score] || '', color: colors[score] || '' }
@@ -104,7 +93,7 @@ export default function Register() {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Left branding panel */}
+      {/* Left branding */}
       <div className="hidden lg:flex flex-col justify-between w-5/12 bg-text-primary p-12">
         <Link to="/" className="flex items-center gap-2.5" aria-label="NESTA home">
           <NestLogo />
@@ -129,13 +118,28 @@ export default function Register() {
 
       {/* Form panel */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 py-12 overflow-y-auto">
-        {/* Mobile logo */}
         <Link to="/" className="lg:hidden flex items-center gap-2 mb-8">
           <NestLogo />
           <span className="text-lg font-semibold tracking-tight">NESTA</span>
         </Link>
 
         <div className="w-full max-w-md">
+          {submitted ? (
+            <div className="text-center flex flex-col gap-5 items-center py-10">
+              <div className="w-16 h-16 rounded-full bg-emerald-50 flex items-center justify-center">
+                <CheckCircle size={32} className="text-emerald-600" />
+              </div>
+              <div>
+                <h3 className="text-heading-4 font-semibold mb-2">Account prepared</h3>
+                <p className="text-sm text-text-secondary max-w-xs leading-relaxed">
+                  Your details have been captured. Authentication will work once the backend is connected.
+                </p>
+              </div>
+              <Link to="/" className="btn-primary px-8">Explore properties</Link>
+              <Link to="/login" className="text-sm text-accent hover:underline">Sign in instead</Link>
+            </div>
+          ) : (
+            <>
               <div className="mb-6">
                 <h1 className="text-heading-3 font-semibold text-text-primary mb-1">Create your account</h1>
                 <p className="text-sm text-text-secondary">Join NESTA to start discovering properties.</p>
@@ -146,9 +150,7 @@ export default function Register() {
                 <p className="text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1">I am a…</p>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {ROLES.map(({ value, label, Icon }) => (
-                    <button
-                      key={value}
-                      type="button"
+                    <button key={value} type="button"
                       onClick={() => setForm((prev) => ({ ...prev, role: value }))}
                       aria-pressed={form.role === value}
                       className={[
@@ -156,8 +158,7 @@ export default function Register() {
                         form.role === value
                           ? 'bg-text-primary border-text-primary text-white'
                           : 'bg-white border-border text-text-secondary hover:border-text-secondary hover:text-text-primary',
-                      ].join(' ')}
-                    >
+                      ].join(' ')}>
                       <Icon size={18} />
                       <span className="text-[10px] font-semibold leading-tight">{label}</span>
                     </button>
@@ -169,27 +170,17 @@ export default function Register() {
               </div>
 
               <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-                {serverError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{serverError}</p>}
-                {/* Name */}
-                <InputRow
-                  id="reg-name" label="Full name" required icon={<User size={14}/>}
+                <InputRow id="reg-name" label="Full name" required icon={<User size={14}/>}
                   type="text" autoComplete="name" placeholder="Kwame Mensah"
-                  value={form.name} onChange={set('name')} error={errors.name}
-                />
+                  value={form.name} onChange={set('name')} error={errors.name} />
 
-                {/* Email */}
-                <InputRow
-                  id="reg-email" label="Email address" required icon={<Mail size={14}/>}
+                <InputRow id="reg-email" label="Email address" required icon={<Mail size={14}/>}
                   type="email" autoComplete="email" placeholder="you@example.com"
-                  value={form.email} onChange={set('email')} error={errors.email}
-                />
+                  value={form.email} onChange={set('email')} error={errors.email} />
 
-                {/* Phone */}
-                <InputRow
-                  id="reg-phone" label="Phone number" icon={<Phone size={14}/>}
+                <InputRow id="reg-phone" label="Phone number" icon={<Phone size={14}/>}
                   type="tel" autoComplete="tel" placeholder="+233 24 000 0000"
-                  value={form.phone} onChange={set('phone')} error={errors.phone}
-                />
+                  value={form.phone} onChange={set('phone')} error={errors.phone} />
 
                 {/* Password */}
                 <div className="flex flex-col gap-1.5">
@@ -198,19 +189,16 @@ export default function Register() {
                   </label>
                   <div className="relative">
                     <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary/40 pointer-events-none" />
-                    <input
-                      id="reg-pass" type={showPass ? 'text' : 'password'}
+                    <input id="reg-pass" type={showPass ? 'text' : 'password'}
                       autoComplete="new-password" placeholder="Min. 8 characters"
                       value={form.password} onChange={set('password')}
-                      className={`w-full rounded-lg border pl-10 pr-10 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-colors ${errors.password ? 'border-red-300' : 'border-border'}`}
-                    />
+                      className={`w-full rounded-lg border pl-10 pr-10 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-colors ${errors.password ? 'border-red-300' : 'border-border'}`} />
                     <button type="button" onClick={() => setShowPass((v) => !v)}
                       aria-label={showPass ? 'Hide password' : 'Show password'}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors">
                       {showPass ? <EyeOff size={14}/> : <Eye size={14}/>}
                     </button>
                   </div>
-                  {/* Strength meter */}
                   {strength && strength.score > 0 && (
                     <div className="flex items-center gap-2 mt-1">
                       <div className="flex gap-1 flex-1">
@@ -224,21 +212,19 @@ export default function Register() {
                   {errors.password && <p className="text-xs text-red-500">{errors.password}</p>}
                 </div>
 
-                {/* Confirm password */}
+                {/* Confirm */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="reg-confirm" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
                     Confirm password<span className="text-accent ml-0.5">*</span>
                   </label>
                   <div className="relative">
                     <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-secondary/40 pointer-events-none" />
-                    <input
-                      id="reg-confirm" type={showConf ? 'text' : 'password'}
+                    <input id="reg-confirm" type={showConf ? 'text' : 'password'}
                       autoComplete="new-password" placeholder="Repeat your password"
                       value={form.confirm} onChange={set('confirm')}
-                      className={`w-full rounded-lg border pl-10 pr-10 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-colors ${errors.confirm ? 'border-red-300' : 'border-border'}`}
-                    />
+                      className={`w-full rounded-lg border pl-10 pr-10 py-3 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-colors ${errors.confirm ? 'border-red-300' : 'border-border'}`} />
                     <button type="button" onClick={() => setShowConf((v) => !v)}
-                      aria-label={showConf ? 'Hide confirm password' : 'Show confirm password'}
+                      aria-label={showConf ? 'Hide' : 'Show'}
                       className="absolute right-3.5 top-1/2 -translate-y-1/2 text-text-secondary hover:text-text-primary transition-colors">
                       {showConf ? <EyeOff size={14}/> : <Eye size={14}/>}
                     </button>
@@ -251,13 +237,9 @@ export default function Register() {
                   <label className="flex items-start gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={form.agree}
                       onChange={(e) => { setForm((p) => ({ ...p, agree: e.target.checked })); setErrors((p) => ({ ...p, agree: undefined })) }}
-                      className="w-4 h-4 rounded border-border accent-accent mt-0.5 cursor-pointer flex-shrink-0"
-                    />
+                      className="w-4 h-4 rounded border-border accent-accent mt-0.5 cursor-pointer flex-shrink-0" />
                     <span className="text-xs text-text-secondary leading-relaxed">
-                      I agree to the{' '}
-                      <a href="#" className="text-accent hover:underline">Terms of Service</a>
-                      {' '}and{' '}
-                      <a href="#" className="text-accent hover:underline">Privacy Policy</a>
+                      I agree to the <a href="#" className="text-accent hover:underline">Terms of Service</a> and <a href="#" className="text-accent hover:underline">Privacy Policy</a>
                     </span>
                   </label>
                   {errors.agree && <p className="text-xs text-red-500 pl-6">{errors.agree}</p>}
@@ -269,19 +251,16 @@ export default function Register() {
                   {loading ? 'Creating account…' : 'Create account'}
                 </button>
 
-                {/* Divider */}
                 <div className="flex items-center gap-3">
                   <div className="flex-1 h-px bg-border"/>
                   <span className="text-xs text-text-secondary">or</span>
                   <div className="flex-1 h-px bg-border"/>
                 </div>
 
-                {/* Google */}
                 <button type="button"
                   className="w-full py-3 rounded-lg border border-border bg-white text-sm font-medium text-text-primary flex items-center justify-center gap-3 hover:bg-surface-hover transition-colors"
                   onClick={() => alert('Google sign-up coming soon.')}>
-                  <GoogleIcon />
-                  Continue with Google
+                  <GoogleIcon /> Continue with Google
                 </button>
               </form>
 
@@ -289,6 +268,11 @@ export default function Register() {
                 Already have an account?{' '}
                 <Link to="/login" className="text-accent font-medium hover:underline">Sign in</Link>
               </p>
+              <p className="text-center text-[10px] text-text-secondary/40 mt-3">
+                Authentication connects in a future phase.
+              </p>
+            </>
+          )}
         </div>
       </div>
     </div>

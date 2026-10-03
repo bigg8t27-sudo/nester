@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
-import { authApi } from '@/lib/api/auth'
-import { useAuth } from '@/lib/auth/AuthProvider'
 
 interface FormState { email: string; password: string; remember: boolean }
 interface FormErrors { email?: string; password?: string }
@@ -21,12 +19,8 @@ export default function Login() {
   const [form,        setForm]        = useState<FormState>({ email: '', password: '', remember: false })
   const [errors,      setErrors]      = useState<FormErrors>({})
   const [showPass,    setShowPass]    = useState(false)
+  const [submitted,   setSubmitted]   = useState(false)
   const [loading,     setLoading]     = useState(false)
-  const [serverError, setServerError] = useState('')
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { setUser } = useAuth()
-  const signInPrompt = (location.state as { message?: string } | null)?.message
 
   function set(field: keyof Omit<FormState, 'remember'>) {
     return (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -45,16 +39,11 @@ export default function Login() {
     return Object.keys(errs).length === 0
   }
 
-  async function handleSubmit(e: React.FormEvent) {
+  function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
-    setLoading(true); setServerError('')
-    try {
-      const result = await authApi.login({ email: form.email, password: form.password, remember: form.remember })
-      setUser(result.user)
-      navigate(result.user.role === 'AGENT' || result.user.role === 'ADMIN' ? '/agent/dashboard' : '/dashboard', { replace: true })
-    } catch (error) { setServerError(error instanceof Error ? error.message : 'Unable to sign in.') }
-    finally { setLoading(false) }
+    setLoading(true)
+    setTimeout(() => { setLoading(false); setSubmitted(true) }, 700)
   }
 
   return (
@@ -86,14 +75,26 @@ export default function Login() {
         </Link>
 
         <div className="w-full max-w-sm">
+          {submitted ? (
+            <div className="text-center flex flex-col gap-4">
+              <div className="w-14 h-14 rounded-full bg-emerald-50 flex items-center justify-center mx-auto">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#059669" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <h3 className="text-heading-4 font-semibold">Sign-in prepared</h3>
+              <p className="text-sm text-text-secondary">
+                Authentication backend is not connected yet. This will work once the backend is live.
+              </p>
+              <button type="button" onClick={() => setSubmitted(false)} className="btn-secondary">Try again</button>
+              <Link to="/" className="text-sm text-accent hover:underline">Back to home</Link>
+            </div>
+          ) : (
               <div className="mb-7">
                 <h1 className="text-heading-3 font-semibold text-text-primary mb-1">Sign in</h1>
                 <p className="text-sm text-text-secondary">Welcome back. Enter your details below.</p>
               </div>
+          )}
 
               <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
-                {signInPrompt && <p role="status" className="rounded-lg bg-accent/10 p-3 text-sm text-text-primary">{signInPrompt}</p>}
-                {serverError && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{serverError}</p>}
                 {/* Email */}
                 <div className="flex flex-col gap-1.5">
                   <label htmlFor="login-email" className="text-xs font-semibold text-text-secondary uppercase tracking-wide">

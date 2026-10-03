@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X, Calendar, CheckCircle } from 'lucide-react'
 import type { Property } from '@/types'
-import { viewingsApi } from '@/lib/api/viewings'
 
 interface ScheduleViewingModalProps {
   property: Property
@@ -44,8 +43,7 @@ export default function ScheduleViewingModal({ property, onClose }: ScheduleView
   })
   const [errors,    setErrors]    = useState<FormErrors>({})
   const [submitted, setSubmitted] = useState(false)
-  const [loading, setLoading] = useState(false)
-  const [serverError, setServerError] = useState('')
+  const [loading,   setLoading]   = useState(false)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -72,10 +70,9 @@ export default function ScheduleViewingModal({ property, onClose }: ScheduleView
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!validate()) return
-    setLoading(true); setServerError('')
-    try { await viewingsApi.create({ propertyId: property.id, name: form.name, email: form.email, phone: form.phone || undefined, preferredDate: form.date, preferredTime: form.time, message: form.message }); setSubmitted(true) }
-    catch (error) { setServerError(error instanceof Error ? error.message : 'Unable to submit viewing request.') }
-    finally { setLoading(false) }
+    setLoading(true)
+    // Frontend-only — no real backend yet
+    setTimeout(() => { setLoading(false); setSubmitted(true) }, 600)
   }
 
   function set(field: keyof FormState) {
@@ -202,7 +199,9 @@ export default function ScheduleViewingModal({ property, onClose }: ScheduleView
                 className={`${inputCls(false)} resize-none`} />
             </div>
 
-            {serverError && <p role="alert" className="text-sm text-red-600">{serverError}</p>}
+            <p className="text-[10px] text-text-secondary/60">
+              Viewing requests are not confirmed until the backend is connected.
+            </p>
 
             <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-60">
               <Calendar size={15} />

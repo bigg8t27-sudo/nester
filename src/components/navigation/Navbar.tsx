@@ -1,9 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, NavLink as RouterNavLink, useLocation } from 'react-router-dom'
 import { Menu, X, ChevronDown } from 'lucide-react'
-import { authApi } from '@/lib/api/auth'
-import { useAuth } from '@/lib/auth/AuthProvider'
-import { useNavigate } from 'react-router-dom'
 
 interface NavItem {
   label: string
@@ -25,13 +22,6 @@ export default function Navbar() {
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null)
   const navRef = useRef<HTMLElement>(null)
   const { pathname } = useLocation()
-  const { user, setUser } = useAuth()
-  const navigate = useNavigate()
-
-  async function logout() {
-    try { await authApi.logout(); setUser(null); navigate('/') }
-    catch (error) { window.alert(error instanceof Error ? error.message : 'Unable to sign out.') }
-  }
 
   // Close mobile menu on route change
   useEffect(() => {
@@ -79,24 +69,22 @@ export default function Navbar() {
       <div className="section-container">
         <div className="flex items-center justify-between h-16 lg:h-18">
 
-          {/* ── Logo ── */}
+          {/* Logo */}
           <Link
             to="/"
             className="flex items-center gap-2.5 flex-shrink-0 group"
             aria-label="NESTA home"
           >
             <NestLogo transparent={transparent} />
-            <span
-              className={[
-                'text-lg font-semibold tracking-tight transition-colors duration-300',
-                transparent ? 'text-white' : 'text-text-primary',
-              ].join(' ')}
-            >
+            <span className={[
+              'text-lg font-semibold tracking-tight transition-colors duration-300',
+              transparent ? 'text-white' : 'text-text-primary',
+            ].join(' ')}>
               NESTA
             </span>
           </Link>
 
-          {/* ── Desktop nav ── */}
+          {/* Desktop nav */}
           <nav className="hidden lg:flex items-center gap-1" aria-label="Main navigation">
             {NAV_ITEMS.map((item) => (
               <DesktopNavItem
@@ -109,12 +97,8 @@ export default function Navbar() {
             ))}
           </nav>
 
-          {/* ── Desktop CTAs ── */}
+          {/* Desktop CTAs */}
           <div className="hidden lg:flex items-center gap-2">
-            {user ? <>
-              <Link to={user.role === 'AGENT' ? '/agent/dashboard' : '/dashboard'} className="px-3 py-2 text-sm text-text-secondary hover:text-text-primary">{user.name}</Link>
-              <button type="button" onClick={() => void logout()} className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary">Sign out</button>
-            </> : <>
             <Link
               to="/login"
               className={[
@@ -126,7 +110,6 @@ export default function Navbar() {
             >
               Log in
             </Link>
-            </>}
             <Link
               to="/register"
               className={[
@@ -140,7 +123,7 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* ── Mobile hamburger ── */}
+          {/* Mobile hamburger */}
           <button
             type="button"
             onClick={() => setMobileOpen((v) => !v)}
@@ -158,7 +141,7 @@ export default function Navbar() {
         </div>
       </div>
 
-      {/* ── Mobile menu ── */}
+      {/* Mobile menu */}
       {mobileOpen && (
         <div className="lg:hidden bg-white border-t border-border animate-slide-down">
           <div className="section-container py-4 flex flex-col gap-1">
@@ -177,13 +160,8 @@ export default function Navbar() {
               </RouterNavLink>
             ))}
             <div className="mt-3 pt-3 border-t border-border flex flex-col gap-2">
-              {user ? <>
-                <Link to={user.role === 'AGENT' ? '/agent/dashboard' : '/dashboard'} className="btn-secondary w-full text-center">My dashboard</Link>
-                <button type="button" onClick={() => void logout()} className="btn-primary w-full">Sign out</button>
-              </> : <>
-                <Link to="/login"    className="btn-secondary w-full text-center">Log in</Link>
-                <Link to="/register" className="btn-primary  w-full text-center">Get started</Link>
-              </>}
+              <Link to="/login"    className="btn-secondary w-full text-center">Log in</Link>
+              <Link to="/register" className="btn-primary  w-full text-center">Get started</Link>
             </div>
           </div>
         </div>
@@ -192,7 +170,7 @@ export default function Navbar() {
   )
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 interface DesktopNavItemProps {
   item: NavItem
@@ -221,10 +199,7 @@ function DesktopNavItem({ item, transparent, dropdownOpen, setDropdownOpen }: De
           aria-expanded={open}
         >
           {item.label}
-          <ChevronDown
-            size={14}
-            className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
-          />
+          <ChevronDown size={14} className={`transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
         </button>
         {open && (
           <div className="absolute top-full left-0 mt-1.5 w-44 bg-white rounded-lg shadow-modal border border-border py-1 animate-slide-down">
@@ -259,29 +234,10 @@ function DesktopNavItem({ item, transparent, dropdownOpen, setDropdownOpen }: De
 
 function NestLogo({ transparent }: { transparent: boolean }) {
   return (
-    <svg
-      width="28"
-      height="28"
-      viewBox="0 0 28 28"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
+    <svg width="28" height="28" viewBox="0 0 28 28" fill="none" aria-hidden="true">
       <rect width="28" height="28" rx="7" fill={transparent ? 'rgba(255,255,255,0.15)' : '#111111'} />
-      <path
-        d="M7 20V13.5L14 8L21 13.5V20H7Z"
-        fill="none"
-        stroke="#B89B5E"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M11.5 20V16.5H16.5V20"
-        fill="none"
-        stroke="#B89B5E"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
+      <path d="M7 20V13.5L14 8L21 13.5V20H7Z" fill="none" stroke="#B89B5E" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M11.5 20V16.5H16.5V20" fill="none" stroke="#B89B5E" strokeWidth="1.4" strokeLinejoin="round" />
     </svg>
   )
 }

@@ -2,8 +2,6 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 
 import { getPropertyById }        from '@/data/properties'
-import { propertiesApi } from '@/lib/api/properties'
-import type { Property } from '@/types'
 import { useFavorites }           from '@/hooks/useFavorites'
 import { useRecentlyViewed }      from '@/hooks/useRecentlyViewed'
 import { usePropertyComparison }  from '@/hooks/usePropertyComparison'
@@ -34,7 +32,6 @@ export default function PropertyDetails() {
   const [showSchedule, setShowSchedule] = useState(false)
   const [showShare,    setShowShare]    = useState(false)
   const [loading,      setLoading]      = useState(true)
-  const [property, setProperty] = useState<Property | undefined>(undefined)
 
   // Hooks
   const { isFavorite, toggle: toggleFav }   = useFavorites()
@@ -43,14 +40,10 @@ export default function PropertyDetails() {
           isFull, toggle: toggleCompare,
           remove: removeCompare, clear: clearCompare } = usePropertyComparison()
 
+  // Simulate a tiny async resolution (graceful loading UX even with sync data)
   useEffect(() => {
-    let alive = true
-    setLoading(true)
-    if (!id) { setProperty(undefined); setLoading(false); return }
-    void propertiesApi.get(id).then((item) => { if (alive) setProperty(item) })
-      .catch(() => { if (alive) setProperty(getPropertyById(id)) })
-      .finally(() => { if (alive) setLoading(false) })
-    return () => { alive = false }
+    const t = setTimeout(() => setLoading(false), 150)
+    return () => clearTimeout(t)
   }, [id])
 
   // Track recently viewed
@@ -60,6 +53,7 @@ export default function PropertyDetails() {
 
   if (loading) return <PropertyDetailsSkeleton />
 
+  const property = id ? getPropertyById(id) : undefined
   if (!property) return <PropertyNotFound />
 
   const favorite   = isFavorite(property.id)

@@ -1,13 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { PlusCircle, Eye, Edit, Trash2, MoreHorizontal } from 'lucide-react'
 import DashboardLayout, { type DashboardNavItem } from '@/components/layout/DashboardLayout'
-import {
-  LayoutDashboard, Building2, MessageCircle, BarChart2, User, Settings,
-} from 'lucide-react'
+import { LayoutDashboard, Building2, MessageCircle, BarChart2, User, Settings } from 'lucide-react'
 import { formatPrice } from '@/utils/format'
-import { propertiesApi } from '@/lib/api/properties'
-import type { Property } from '@/types'
+import { ALL_PROPERTIES } from '@/data/properties'
 
 const NAV: DashboardNavItem[] = [
   { label: 'Overview',      to: '/agent/dashboard',           Icon: LayoutDashboard },
@@ -19,6 +16,14 @@ const NAV: DashboardNavItem[] = [
   { label: 'Settings',      to: '/agent/dashboard/settings',  Icon: Settings },
 ]
 
+// Use first 6 properties as mock agent listings
+const AGENT_LISTINGS = ALL_PROPERTIES.slice(0, 6).map((p, i) => ({
+  ...p,
+  status: i === 2 ? 'pending' : i === 5 ? 'paused' : 'active' as 'active' | 'pending' | 'paused',
+  views:     [142, 89, 0, 67, 51, 34][i] ?? 0,
+  inquiries: [8,   4,  0, 3,  2,  1 ][i] ?? 0,
+}))
+
 const STATUS_STYLES: Record<string, string> = {
   active:  'bg-emerald-50 text-emerald-700 border-emerald-200',
   pending: 'bg-yellow-50 text-yellow-700 border-yellow-200',
@@ -27,15 +32,6 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function AgentProperties() {
   const [menuOpen, setMenuOpen] = useState<string | null>(null)
-  const [listings, setListings] = useState<Property[]>([])
-  const [error, setError] = useState('')
-  useEffect(() => { void propertiesApi.mine().then(setListings).catch((reason) => setError(reason instanceof Error ? reason.message : 'Could not load listings.')) }, [])
-  async function deleteListing(id: string) {
-    if (!window.confirm('Delete this property listing?')) return
-    try { await propertiesApi.delete(id); setListings((items) => items.filter((item) => item.id !== id)) }
-    catch (reason) { window.alert(reason instanceof Error ? reason.message : 'Could not delete listing.') }
-  }
-  const agentListings = listings.map((property) => ({ ...property, status: 'active', inquiries: 0 }))
 
   return (
     <DashboardLayout title="My properties" subtitle="Agent portal" badge="Agent" navItems={NAV}>
@@ -44,19 +40,16 @@ export default function AgentProperties() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-heading-4 font-semibold text-text-primary">My listings</h2>
-            <p className="text-xs text-text-secondary mt-0.5">{agentListings.length} properties managed</p>
+            <p className="text-xs text-text-secondary mt-0.5">{AGENT_LISTINGS.length} properties managed</p>
           </div>
           <Link to="/agent/properties/new" className="btn-primary flex items-center gap-2 text-sm">
             <PlusCircle size={15} /> Add property
           </Link>
         </div>
 
-        {error && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-
-        {/* Listing table */}
-        <div className="bg-white rounded-xl border border-border overflow-hidden">
-          {/* Desktop table */}
-          <div className="hidden md:block overflow-x-auto">
+        {/* Desktop table */}
+        <div className="bg-white rounded-xl border border-border overflow-hidden hidden md:block">
+          <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-surface-secondary/50">
@@ -69,15 +62,12 @@ export default function AgentProperties() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {agentListings.map((listing) => (
+                {AGENT_LISTINGS.map((listing) => (
                   <tr key={listing.id} className="hover:bg-surface-secondary/30 transition-colors">
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={listing.images[0]}
-                          alt={listing.title}
-                          className="w-12 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-secondary"
-                        />
+                        <img src={listing.images[0]} alt={listing.title}
+                          className="w-12 h-9 rounded-lg object-cover flex-shrink-0 bg-surface-secondary" />
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-text-primary line-clamp-1">{listing.title}</p>
                           <p className="text-xs text-text-secondary mt-0.5">{listing.location.neighborhood}, {listing.location.city}</p>
@@ -85,9 +75,7 @@ export default function AgentProperties() {
                       </div>
                     </td>
                     <td className="px-4 py-4">
-                      <p className="text-sm font-medium text-text-primary">
-                        {formatPrice(listing.price, listing.currency)}
-                      </p>
+                      <p className="text-sm font-medium text-text-primary">{formatPrice(listing.price, listing.currency)}</p>
                       {listing.priceLabel && <p className="text-[10px] text-text-secondary">{listing.priceLabel}</p>}
                     </td>
                     <td className="px-4 py-4">
@@ -99,16 +87,17 @@ export default function AgentProperties() {
                     <td className="px-4 py-4 text-sm text-text-secondary">{listing.inquiries}</td>
                     <td className="px-4 py-4">
                       <div className="flex items-center gap-1 justify-end">
-                        <Link to={`/properties/${listing.id}`} aria-label="View listing"
+                        <Link to={`/properties/${listing.id}`} aria-label="View"
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary hover:text-text-primary transition-colors">
                           <Eye size={14} />
                         </Link>
-                        <Link to={`/agent/properties/${listing.id}/edit`} aria-label="Edit listing"
+                        <button type="button" aria-label="Edit"
+                          onClick={() => alert('Edit connects to the backend in a future phase.')}
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary hover:text-accent transition-colors">
                           <Edit size={14} />
-                        </Link>
-                        <button type="button" aria-label="Delete listing"
-                          onClick={() => void deleteListing(listing.id)}
+                        </button>
+                        <button type="button" aria-label="Delete"
+                          onClick={() => alert('Delete connects to the backend in a future phase.')}
                           className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary hover:text-red-500 transition-colors">
                           <Trash2 size={14} />
                         </button>
@@ -119,48 +108,48 @@ export default function AgentProperties() {
               </tbody>
             </table>
           </div>
+        </div>
 
-          {/* Mobile card list */}
-          <div className="md:hidden divide-y divide-border">
-            {agentListings.map((listing) => (
-              <div key={listing.id} className="p-4 flex gap-3">
-                <img src={listing.images[0]} alt={listing.title}
-                  className="w-16 h-14 rounded-lg object-cover flex-shrink-0 bg-surface-secondary"/>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary line-clamp-1">{listing.title}</p>
-                  <p className="text-xs text-text-secondary mt-0.5">
-                    {formatPrice(listing.price, listing.currency)}{listing.priceLabel ? ' ' + listing.priceLabel : ''}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${STATUS_STYLES[listing.status]}`}>
-                      {listing.status}
-                    </span>
-                    <span className="text-[10px] text-text-secondary">{listing.views} views</span>
-                  </div>
-                </div>
-                <div className="relative flex-shrink-0">
-                  <button type="button"
-                    onClick={() => setMenuOpen(menuOpen === listing.id ? null : listing.id)}
-                    className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary transition-colors">
-                    <MoreHorizontal size={16}/>
-                  </button>
-                  {menuOpen === listing.id && (
-                    <div className="absolute right-0 top-8 bg-white rounded-lg shadow-modal border border-border py-1 z-10 w-32">
-                      <Link to={`/properties/${listing.id}`} className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-text-secondary">
-                        <Eye size={12}/> View
-                      </Link>
-                      <Link to={`/agent/properties/${listing.id}/edit`} className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-text-secondary w-full">
-                        <Edit size={12}/> Edit
-                      </Link>
-                      <button type="button" onClick={() => void deleteListing(listing.id)} className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-red-500 w-full">
-                        <Trash2 size={12}/> Delete
-                      </button>
-                    </div>
-                  )}
+        {/* Mobile card list */}
+        <div className="md:hidden bg-white rounded-xl border border-border overflow-hidden divide-y divide-border">
+          {AGENT_LISTINGS.map((listing) => (
+            <div key={listing.id} className="p-4 flex gap-3">
+              <img src={listing.images[0]} alt={listing.title}
+                className="w-16 h-14 rounded-lg object-cover flex-shrink-0 bg-surface-secondary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-text-primary line-clamp-1">{listing.title}</p>
+                <p className="text-xs text-text-secondary mt-0.5">
+                  {formatPrice(listing.price, listing.currency)}{listing.priceLabel ? ' ' + listing.priceLabel : ''}
+                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold border capitalize ${STATUS_STYLES[listing.status]}`}>
+                    {listing.status}
+                  </span>
+                  <span className="text-[10px] text-text-secondary">{listing.views} views</span>
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="relative flex-shrink-0">
+                <button type="button"
+                  onClick={() => setMenuOpen(menuOpen === listing.id ? null : listing.id)}
+                  className="w-7 h-7 flex items-center justify-center rounded hover:bg-surface-hover text-text-secondary">
+                  <MoreHorizontal size={16} />
+                </button>
+                {menuOpen === listing.id && (
+                  <div className="absolute right-0 top-8 bg-white rounded-lg shadow-modal border border-border py-1 z-10 w-32">
+                    <Link to={`/properties/${listing.id}`} className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-text-secondary">
+                      <Eye size={12} /> View
+                    </Link>
+                    <button type="button" className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-text-secondary w-full">
+                      <Edit size={12} /> Edit
+                    </button>
+                    <button type="button" className="flex items-center gap-2 px-3 py-2 text-xs hover:bg-surface-hover text-red-500 w-full">
+                      <Trash2 size={12} /> Delete
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     </DashboardLayout>
